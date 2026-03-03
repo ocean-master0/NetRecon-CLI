@@ -1,0 +1,10 @@
+aiohttp
+async-timeout
+rich
+requests
+dnspython
+speedtest-cli
+scapy
+psutil
+python-whois
+ipwhois

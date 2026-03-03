@@ -1,0 +1,29 @@
+{
+  "mode": "active",
+  "external_lookup": true,
+  "interfaces": false,
+  "default_port_range": "1-1024",
+  "security_mode": true,
+  "threat_check": false,
+  "connect_timeout": 0.5,
+  "request_timeout_seconds": 8.0,
+  "external_workers": 3,
+  "port_scan_workers": 300,
+  "subdomain_workers": 200,
+  "common_ports": [20, 21, 22, 23, 25, 53, 80, 110, 139, 143, 443, 445, 3389, 8080],
+  "risky_ports": [21, 23, 25, 445, 3389, 5900],
+  "subdomain_wordlist": ["www", "mail", "api", "dev", "staging", "beta", "admin", "portal", "vpn", "docs", "blog", "m", "ftp", "cpanel", "webmail"],
+  "traceroute_max_hops": 30,
+  "traceroute_timeout_ms": 2000,
+  "lan_scan_timeout_ms": 800,
+  "sniff_default_limit": 200,
+  "sniff_default_timeout": 15,
+  "html_report_default": "report.html",
+  "log_level": "INFO",
+  "log_file": "logs/netrecon.log",
+  "api_keys": {
+    "abuseipdb": "",
+    "virustotal": "",
+    "shodan": ""
+  }
+}
