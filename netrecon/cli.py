@@ -4,6 +4,8 @@ import argparse
 import ipaddress
 import json
 import logging
+import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -141,17 +143,42 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-MAX_ARG_LENGTH = 4096
+SAFE_HOSTNAME_RE = re.compile(
+    r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*"
+    r"[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$"
+)
 
-def _validate_length(value: str | None, name: str) -> None:
-    if value and len(value) > MAX_ARG_LENGTH:
-        raise ValueError(f"{name} exceeds maximum length of {MAX_ARG_LENGTH} characters.")
+def validate_target(value: str, name: str = "target") -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError(f"{name} cannot be empty.")
+    if len(value) > 4096:
+        raise ValueError(f"{name} exceeds maximum length of 4096 characters.")
+    if "\x00" in value:
+        raise ValueError(f"{name} contains null byte.")
+    try:
+        ipaddress.ip_address(value)
+        return value
+    except ValueError:
+        pass
+    if SAFE_HOSTNAME_RE.match(value) and len(value) <= 253:
+        return value
+    raise ValueError(f"{name} '{value}' is not a valid IP address or hostname.")
 
 
 def resolve_scan_options(args: argparse.Namespace, config: AppConfig) -> ScanOptions:
     """Merge CLI arguments with config defaults and validate values."""
     for arg_name in ("target", "dns", "whois_target", "traceroute", "subdomain", "lan_scan", "geo_html"):
-        _validate_length(getattr(args, arg_name.replace("-", "_"), None), arg_name)
+        value = getattr(args, arg_name.replace("-", "_"), None)
+        if value:
+            validate_target(value, arg_name)
+
+    if getattr(args, "serve_host", "127.0.0.1") != "127.0.0.1" and not os.environ.get("NETRECON_API_TOKEN"):
+        raise ValueError(
+            "Security error: --serve-host is not 127.0.0.1 but NETRECON_API_TOKEN "
+            "is not set. Set the environment variable before exposing the API:\n"
+            '  export NETRECON_API_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")'
+        )
 
     mode = (args.mode or config.mode).lower()
     if mode not in {"passive", "active"}:

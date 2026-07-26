@@ -38,8 +38,8 @@ def _install_windows_exception_filter(loop: asyncio.AbstractEventLoop) -> None:
     loop.set_exception_handler(_handler)
     try:
         setattr(loop, "_netrecon_exception_filter_installed", True)
-    except Exception:  # noqa: BLE001 - event loop implementations may restrict dynamic attrs.
-        pass
+    except Exception as exc:  # noqa: BLE001 - event loop implementations may restrict dynamic attrs.
+        LOGGER.debug("Failed to set exception filter flag on loop: %s", exc)
 
 
 def run_async(coro: Awaitable[T]) -> T:

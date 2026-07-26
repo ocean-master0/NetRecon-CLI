@@ -76,7 +76,7 @@ class PortScanner:
         stealth_mode: bool | None = None,
     ) -> PortScanResult:
         """Scan provided ports asynchronously and optionally grab service banners."""
-        import random
+        import secrets
         port_list = sorted(set(int(port) for port in ports))
         is_stealth = self.stealth_mode if stealth_mode is None else stealth_mode
         if is_stealth:
@@ -92,7 +92,7 @@ class PortScanner:
         async def _scan(port: int) -> tuple[int, str]:
             async with semaphore:
                 if is_stealth:
-                    await asyncio.sleep(random.uniform(0.01, 0.05))
+                    await asyncio.sleep(secrets.randbelow(40) / 1000 + 0.01)
                 return await self._scan_single_port(target, port)
 
         tasks = [asyncio.create_task(_scan(port)) for port in port_list]

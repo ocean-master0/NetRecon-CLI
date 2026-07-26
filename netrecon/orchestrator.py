@@ -92,8 +92,8 @@ class NetReconOrchestrator:
         if self._status is not None:
             try:
                 self._status(message)
-            except Exception:
-                pass
+            except Exception as exc:
+                LOGGER.debug("Status update failed (non-fatal): %s", exc)
 
     def run(self, options: ScanOptions) -> ReconResult:
         """Synchronous wrapper to execute async orchestrator."""

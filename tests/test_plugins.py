@@ -62,6 +62,7 @@ class PluginRegistryTests(unittest.TestCase):
         self.assertEqual(plugins[0]["name"], "echo")
 
     def test_discover_directory(self):
+        import hashlib
         with TemporaryDirectory() as temp_dir:
             plugin_code = '''
 from netrecon.plugin_base import NetReconPlugin
@@ -73,7 +74,12 @@ class DirPlugin(NetReconPlugin):
     def run(self, options, result):
         return result
 '''
-            (Path(temp_dir) / "myplugin.py").write_text(plugin_code, encoding="utf-8")
+            py_path = Path(temp_dir) / "myplugin.py"
+            py_path.write_text(plugin_code, encoding="utf-8")
+            manifest = {"myplugin.py": hashlib.sha256(py_path.read_bytes()).hexdigest()}
+            (Path(temp_dir) / "manifest.json").write_text(
+                __import__("json").dumps(manifest), encoding="utf-8"
+            )
             registry = PluginRegistry()
             registry.discover_directory(temp_dir)
             self.assertGreater(registry.count, 0)

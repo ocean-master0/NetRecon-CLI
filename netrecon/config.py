@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import stat as stat_module
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -78,11 +79,13 @@ class ConfigLoader:
         if payload is not None:
             config = self._apply_payload(config, payload)
 
-        secrets_payload = self._load_json_file(self.secrets_path)
-        if secrets_payload is not None and isinstance(secrets_payload, dict):
-            secrets_keys = self._api_keys(secrets_payload.get("api_keys"), {})
-            if secrets_keys:
-                config.api_keys.update(secrets_keys)
+        if self.secrets_path.exists():
+            self._check_secrets_permissions(self.secrets_path)
+            secrets_payload = self._load_json_file(self.secrets_path)
+            if secrets_payload is not None and isinstance(secrets_payload, dict):
+                secrets_keys = self._api_keys(secrets_payload.get("api_keys"), {})
+                if secrets_keys:
+                    config.api_keys.update(secrets_keys)
 
         load_dotenv()
         env_nvd = os.environ.get("NVD_API_KEY", "").strip()
@@ -90,6 +93,16 @@ class ConfigLoader:
             config.api_keys["nvd"] = env_nvd
 
         return config
+
+    @staticmethod
+    def _check_secrets_permissions(path: Path) -> None:
+        mode = path.stat().st_mode
+        if mode & (stat_module.S_IRGRP | stat_module.S_IROTH):
+            LOGGER.warning(
+                "secrets.json has insecure permissions (%s). "
+                "Run: chmod 600 %s",
+                oct(mode & 0o777), path,
+            )
 
     @staticmethod
     def _load_json_file(path: Path) -> dict | None:

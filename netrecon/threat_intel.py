@@ -92,9 +92,10 @@ class ThreatIntelChecker:
         if not api_key:
             return "shodan", None, "missing key"
         await asyncio.sleep(self.rate_limit_sleep)
-        url = f"https://api.shodan.io/shodan/host/{ip_value}?key={api_key}"
+        url = f"https://api.shodan.io/shodan/host/{ip_value}"
+        headers = {"key": api_key}
         try:
-            payload = await fetch_json(url, timeout_seconds=self.timeout_seconds)
+            payload = await fetch_json(url, headers=headers, timeout_seconds=self.timeout_seconds)
         except Exception as exc:  # noqa: BLE001
             return "shodan", None, str(exc)
         return "shodan", payload, None

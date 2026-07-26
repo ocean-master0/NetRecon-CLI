@@ -78,6 +78,11 @@ class TracerouteScanner:
 
     @staticmethod
     def _system_traceroute_command(target: str) -> list[str] | None:
+        try:
+            ipaddress.ip_address(target)
+        except ValueError:
+            if not re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$", target):
+                return None
         system_name = platform.system()
         if system_name == "Windows":
             return ["tracert", "-d", target]

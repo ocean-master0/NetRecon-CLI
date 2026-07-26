@@ -28,7 +28,7 @@ class SshEnumerator:
                     ver_match = re.search(r"SSH-\d\.\d-([^\s]+)", banner_str)
                     if ver_match:
                         result.software_version = ver_match.group(1)
-                    sock.sendall(banner[:16])
+                    sock.sendall(b"SSH-2.0-NetRecon_2.0\r\n")
                     try:
                         kex_data = sock.recv(65535)
                         result = self._parse_kex_init(result, kex_data)
@@ -73,6 +73,6 @@ class SshEnumerator:
             result.mac_algorithms, offset = read_name_list()
             _tmp, offset = read_name_list()
             result.compression_algorithms, offset = read_name_list()
-        except Exception:
-            pass
+        except Exception as exc:
+            LOGGER.debug("SSH KEX parse failed: %s", exc)
         return result

@@ -49,8 +49,8 @@ class GeoIpLookup:
                     asn_resp = self._asn_reader.asn(ip)
                     asn_num = str(asn_resp.autonomous_system_number)
                     asn_org = asn_resp.autonomous_system_organization
-                except Exception:
-                    pass
+                except Exception as exc:
+                    LOGGER.debug("GeoIP ASN lookup failed for %s: %s", ip, exc)
             return GeoIpResult(
                 ip=ip,
                 country=city.country.name,

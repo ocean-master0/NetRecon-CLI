@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import importlib
+import json
 import logging
 import pkgutil
 from pathlib import Path
@@ -53,12 +55,34 @@ class PluginRegistry:
         if not path.is_dir():
             LOGGER.warning("Plugin directory '%s' does not exist.", directory)
             return
+        manifest_path = path / "manifest.json"
+        if not manifest_path.exists():
+            LOGGER.error("No plugin manifest found in '%s' — skipping directory.", directory)
+            return
+        try:
+            approved = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            LOGGER.error("Failed to read plugin manifest '%s': %s", manifest_path, exc)
+            return
+        if not isinstance(approved, dict):
+            LOGGER.error("Plugin manifest must be a JSON object (name -> sha256).")
+            return
         sys_path_before = list(importlib.import_module("sys").path)
         try:
             importlib.import_module("sys").path.insert(0, str(path))
             for finder, modname, ispkg in pkgutil.iter_modules([str(path)]):
                 if modname.startswith("_"):
                     continue
+                py_file = path / f"{modname}.py"
+                if py_file.exists():
+                    sha256 = hashlib.sha256(py_file.read_bytes()).hexdigest()
+                    expected = approved.get(py_file.name)
+                    if not expected:
+                        LOGGER.error("Plugin '%s' not listed in manifest — skipping.", py_file.name)
+                        continue
+                    if sha256 != expected:
+                        LOGGER.error("Plugin '%s' checksum mismatch — skipping.", py_file.name)
+                        continue
                 try:
                     mod = importlib.import_module(modname)
                     for attr_name in dir(mod):

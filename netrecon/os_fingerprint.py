@@ -153,8 +153,8 @@ async def fingerprint_os(host: str, banner_window: int | None = None) -> OsFinge
         s = socket_tcp_window(host, 80)
         if s:
             ttl_sources.append(("socket", str(s)))
-    except Exception:
-        pass
+    except Exception as exc:
+        LOGGER.debug("OS fingerprint socket error (non-fatal): %s", exc)
 
     scapy_ttl, scapy_options, scapy_window, _ = await asyncio.to_thread(_scapy_fingerprint, host)
     if scapy_ttl:

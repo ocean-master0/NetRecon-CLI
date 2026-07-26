@@ -56,6 +56,7 @@ class HTMLReportBuilder:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NetRecon HTML Report</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
   <style>
     *, *::before, *::after {{ box-sizing:border-box; }}
     body {{ font-family:'Segoe UI',Tahoma,sans-serif; background:#f5f7fb; margin:0; padding:20px; color:#1b1f2a; }}

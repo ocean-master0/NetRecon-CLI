@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import sqlite3
+import stat
 import time
 import urllib.parse
 from datetime import datetime, timezone
@@ -25,6 +27,7 @@ class CveCache:
 
     def _init_db(self) -> None:
         conn = sqlite3.connect(str(self.db_path))
+        os.chmod(self.db_path, stat.S_IRUSR | stat.S_IWUSR)
         try:
             has_cache_key = any(
                 col[1] == "cache_key"
