@@ -90,10 +90,7 @@ class TracerouteScanner:
         system_name = platform.system()
         timeout_seconds = max(1, int(self.timeout_ms / 1000))
 
-        try:
-            target_ip = asyncio.run(self._resolve_target_ip(target))
-        except Exception:  # noqa: BLE001
-            target_ip = None
+        target_ip = self._resolve_target_ip_sync(target)
 
         for hop_number in range(1, self.max_hops + 1):
             if system_name == "Windows":
@@ -120,10 +117,9 @@ class TracerouteScanner:
         return hops
 
     @staticmethod
-    async def _resolve_target_ip(target: str) -> str | None:
-        loop = asyncio.get_running_loop()
+    def _resolve_target_ip_sync(target: str) -> str | None:
         try:
-            infos = await loop.getaddrinfo(target, None, family=0, type=0, proto=0, flags=0)
+            infos = socket.getaddrinfo(target, None, family=0, type=0, proto=0, flags=0)
         except OSError:
             return None
         for info in infos:

@@ -40,6 +40,7 @@ class BannerResult:
     port: int
     service: str
     banner: str | None = None
+    version: str | None = None
     status: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
@@ -112,9 +113,17 @@ class DNSAnalysisResult:
     txt_records: list[str] = field(default_factory=list)
     ns_records: list[str] = field(default_factory=list)
     cname_records: list[str] = field(default_factory=list)
+    axfr_records: list[str] = field(default_factory=list)
     spf_present: bool = False
+    spf_source: str = ""
     dmarc_present: bool = False
+    dmarc_source: str = ""
     dnssec_enabled: bool = False
+    dnssec_source: str = ""
+    soa_record: str | None = None
+    srv_records: list[str] = field(default_factory=list)
+    caa_records: list[str] = field(default_factory=list)
+    tlsa_records: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -155,6 +164,8 @@ class SubdomainRecord:
     host: str
     ip: str
     response_ms: float
+    http_status: int | None = None
+    http_response_ms: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -168,6 +179,9 @@ class SubdomainScanResult:
     scanned_count: int
     active_hosts: list[SubdomainRecord] = field(default_factory=list)
     duration_seconds: float = 0.0
+    wildcard_detected: bool = False
+    wildcard_ip: str | None = None
+    crt_sh_count: int = 0
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -210,6 +224,47 @@ class RiskAssessment:
     score: int
     level: str
     factors: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CveRecord:
+    cve_id: str
+    base_score: float | None = None
+    severity: str | None = None
+    description: str | None = None
+    cvss_vector: str | None = None
+    source: str = "nvd"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CveLookupResult:
+    software: str
+    version: str | None = None
+    cves: list[CveRecord] = field(default_factory=list)
+    total_found: int = 0
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class OsFingerprintResult:
+    """OS fingerprinting result based on TCP/IP stack analysis."""
+
+    host: str
+    guessed_os: str | None = None
+    confidence: float = 0.0
+    ttl_observed: int | None = None
+    latency_ms: float | None = None
+    details: list[str] = field(default_factory=list)
+    raw_sources: list[tuple[str | None, str | None]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -266,6 +321,79 @@ class SnifferResult:
 
     packets_captured: int
     suspicious_events: list[str] = field(default_factory=list)
+    pcap_path: str | None = None
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class GeoIpResult:
+    """Offline GeoIP lookup result."""
+
+    ip: str
+    country: str | None = None
+    city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    asn: str | None = None
+    organization: str | None = None
+    source: str = "unknown"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class SslCertResult:
+    """SSL/TLS certificate details."""
+
+    target: str
+    port: int = 443
+    subject_cn: str | None = None
+    issuer: str | None = None
+    not_before: str | None = None
+    not_after: str | None = None
+    san: list[str] = field(default_factory=list)
+    self_signed: bool = False
+    expired: bool = False
+    cipher: str | None = None
+    protocol: str | None = None
+    cert_chain_length: int | None = None
+    key_algorithm: str | None = None
+    key_size: int | None = None
+    ocsp_must_staple: bool = False
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class SshEnumResult:
+    """SSH server enumeration result."""
+
+    target: str
+    port: int = 22
+    banner: str | None = None
+    software_version: str | None = None
+    kex_algorithms: list[str] = field(default_factory=list)
+    host_key_algorithms: list[str] = field(default_factory=list)
+    encryption_algorithms: list[str] = field(default_factory=list)
+    mac_algorithms: list[str] = field(default_factory=list)
+    compression_algorithms: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PluginResult:
+    plugin_name: str
+    plugin_version: str = "0.1.0"
+    data: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -276,6 +404,7 @@ class SnifferResult:
 class ScanOptions:
     """Runtime options resolved from CLI + config."""
 
+    stealth_mode: bool = False
     target: str | None = None
     mode: str = "active"
     external_lookup: bool = True
@@ -286,17 +415,37 @@ class ScanOptions:
     whois_target: str | None = None
     run_speedtest: bool = False
     dns_host: str | None = None
+    dns_axfr_target: str | None = None
     security_check: bool = False
     geo_html_path: str | None = None
     traceroute_target: str | None = None
     traceroute_advanced: bool = False
     subdomain_target: str | None = None
+    subdomain_wordlist_path: str | None = None
     run_threat_check: bool = False
     html_report_path: str | None = None
     lan_scan_cidr: str | None = None
     sniff: bool = False
     sniff_limit: int = 200
     sniff_timeout: int = 15
+    os_fingerprint_target: str | None = None
+    cve_target: str | None = None
+    cve_version: str | None = None
+    watch_mode: bool = False
+    watch_interval: int = 60
+    serve_mode: bool = False
+    serve_host: str = "127.0.0.1"
+    serve_port: int = 8088
+    plugin_dir: str | None = None
+    list_plugins: bool = False
+    ssl_enum_target: str | None = None
+    ssl_enum_port: int = 443
+    ssh_enum_target: str | None = None
+    ssh_enum_port: int = 22
+    geoip_db_path: str | None = None
+    pcap_path: str | None = None
+    sniff_filter: str | None = None
+    tui_mode: bool = False
 
 
 @dataclass
@@ -323,6 +472,12 @@ class ReconResult:
     risk_assessment: RiskAssessment | None = None
     lan_scan: LanScanResult | None = None
     sniffer: SnifferResult | None = None
+    os_fingerprint: OsFingerprintResult | None = None
+    cve_results: list[CveLookupResult] | None = None
+    plugin_results: list[PluginResult] = field(default_factory=list)
+    geoip_result: GeoIpResult | None = None
+    ssl_cert: SslCertResult | None = None
+    ssh_enum: SshEnumResult | None = None
     html_report_path: str | None = None
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)

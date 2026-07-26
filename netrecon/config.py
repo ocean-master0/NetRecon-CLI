@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+
+from dotenv import load_dotenv
 
 LOGGER = logging.getLogger(__name__)
 
@@ -64,60 +67,81 @@ class AppConfig:
 class ConfigLoader:
     """Load and validate runtime configuration from a JSON file."""
 
-    def __init__(self, path: str | Path = "config.json") -> None:
+    def __init__(self, path: str | Path = "config.json", secrets_path: str | Path = "secrets.json") -> None:
         self.path = Path(path)
+        self.secrets_path = Path(secrets_path)
 
     def load(self) -> AppConfig:
         config = AppConfig()
-        if not self.path.exists():
-            LOGGER.info("Config file not found at %s. Using defaults.", self.path)
-            return config
 
+        payload = self._load_json_file(self.path)
+        if payload is not None:
+            config = self._apply_payload(config, payload)
+
+        secrets_payload = self._load_json_file(self.secrets_path)
+        if secrets_payload is not None and isinstance(secrets_payload, dict):
+            secrets_keys = self._api_keys(secrets_payload.get("api_keys"), {})
+            if secrets_keys:
+                config.api_keys.update(secrets_keys)
+
+        load_dotenv()
+        env_nvd = os.environ.get("NVD_API_KEY", "").strip()
+        if env_nvd:
+            config.api_keys["nvd"] = env_nvd
+
+        return config
+
+    @staticmethod
+    def _load_json_file(path: Path) -> dict | None:
+        if not path.exists():
+            return None
         try:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
+            payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            LOGGER.warning("Failed to read config file %s: %s", self.path, exc)
-            return config
-
+            LOGGER.warning("Failed to read config file %s: %s", path, exc)
+            return None
         if not isinstance(payload, dict):
-            LOGGER.warning("Config file %s is not a JSON object. Using defaults.", self.path)
-            return config
+            LOGGER.warning("Config file %s is not a JSON object. Using defaults.", path)
+            return None
+        return payload
 
-        config.mode = self._mode(payload.get("mode"), config.mode)
-        config.external_lookup = self._bool(payload.get("external_lookup"), config.external_lookup)
-        config.interfaces = self._bool(payload.get("interfaces"), config.interfaces)
-        config.security_mode = self._bool(payload.get("security_mode"), config.security_mode)
-        config.threat_check = self._bool(payload.get("threat_check"), config.threat_check)
+    @staticmethod
+    def _apply_payload(config: AppConfig, payload: dict) -> AppConfig:
+        config.mode = ConfigLoader._mode(payload.get("mode"), config.mode)
+        config.external_lookup = ConfigLoader._bool(payload.get("external_lookup"), config.external_lookup)
+        config.interfaces = ConfigLoader._bool(payload.get("interfaces"), config.interfaces)
+        config.security_mode = ConfigLoader._bool(payload.get("security_mode"), config.security_mode)
+        config.threat_check = ConfigLoader._bool(payload.get("threat_check"), config.threat_check)
 
-        config.default_port_range = self._str(payload.get("default_port_range"), config.default_port_range)
-        config.connect_timeout = self._positive_float(payload.get("connect_timeout"), config.connect_timeout)
-        config.request_timeout_seconds = self._positive_float(
+        config.default_port_range = ConfigLoader._str(payload.get("default_port_range"), config.default_port_range)
+        config.connect_timeout = ConfigLoader._positive_float(payload.get("connect_timeout"), config.connect_timeout)
+        config.request_timeout_seconds = ConfigLoader._positive_float(
             payload.get("request_timeout_seconds"),
             config.request_timeout_seconds,
         )
-        config.external_workers = self._positive_int(payload.get("external_workers"), config.external_workers)
-        config.port_scan_workers = self._positive_int(payload.get("port_scan_workers"), config.port_scan_workers)
-        config.subdomain_workers = self._positive_int(payload.get("subdomain_workers"), config.subdomain_workers)
-        config.traceroute_max_hops = self._positive_int(payload.get("traceroute_max_hops"), config.traceroute_max_hops)
-        config.traceroute_timeout_ms = self._positive_int(
+        config.external_workers = ConfigLoader._positive_int(payload.get("external_workers"), config.external_workers)
+        config.port_scan_workers = ConfigLoader._positive_int(payload.get("port_scan_workers"), config.port_scan_workers)
+        config.subdomain_workers = ConfigLoader._positive_int(payload.get("subdomain_workers"), config.subdomain_workers)
+        config.traceroute_max_hops = ConfigLoader._positive_int(payload.get("traceroute_max_hops"), config.traceroute_max_hops)
+        config.traceroute_timeout_ms = ConfigLoader._positive_int(
             payload.get("traceroute_timeout_ms"),
             config.traceroute_timeout_ms,
         )
-        config.lan_scan_timeout_ms = self._positive_int(payload.get("lan_scan_timeout_ms"), config.lan_scan_timeout_ms)
-        config.sniff_default_limit = self._positive_int(payload.get("sniff_default_limit"), config.sniff_default_limit)
-        config.sniff_default_timeout = self._positive_int(
+        config.lan_scan_timeout_ms = ConfigLoader._positive_int(payload.get("lan_scan_timeout_ms"), config.lan_scan_timeout_ms)
+        config.sniff_default_limit = ConfigLoader._positive_int(payload.get("sniff_default_limit"), config.sniff_default_limit)
+        config.sniff_default_timeout = ConfigLoader._positive_int(
             payload.get("sniff_default_timeout"),
             config.sniff_default_timeout,
         )
-        config.html_report_default = self._str(payload.get("html_report_default"), config.html_report_default)
+        config.html_report_default = ConfigLoader._str(payload.get("html_report_default"), config.html_report_default)
 
-        config.common_ports = self._ports_list(payload.get("common_ports"), config.common_ports)
-        config.risky_ports = self._ports_list(payload.get("risky_ports"), config.risky_ports)
-        config.subdomain_wordlist = self._wordlist(payload.get("subdomain_wordlist"), config.subdomain_wordlist)
+        config.common_ports = ConfigLoader._ports_list(payload.get("common_ports"), config.common_ports)
+        config.risky_ports = ConfigLoader._ports_list(payload.get("risky_ports"), config.risky_ports)
+        config.subdomain_wordlist = ConfigLoader._wordlist(payload.get("subdomain_wordlist"), config.subdomain_wordlist)
 
-        config.log_level = self._str(payload.get("log_level"), config.log_level).upper()
-        config.log_file = self._str(payload.get("log_file"), config.log_file)
-        config.api_keys = self._api_keys(payload.get("api_keys"), config.api_keys)
+        config.log_level = ConfigLoader._str(payload.get("log_level"), config.log_level).upper()
+        config.log_file = ConfigLoader._str(payload.get("log_file"), config.log_file)
+        config.api_keys = ConfigLoader._api_keys(payload.get("api_keys"), config.api_keys)
         return config
 
     @staticmethod

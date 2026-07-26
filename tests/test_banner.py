@@ -12,7 +12,9 @@ class BannerGrabberTests(unittest.TestCase):
 
     def test_infer_service_from_banner(self):
         grabber = BannerGrabber()
-        self.assertEqual(grabber._infer_service(3306, "5.7.41-MySQL"), "mysql")
+        service, version = grabber._infer_service(3306, "5.7.41-MySQL")
+        self.assertEqual(service, "mysql")
+        self.assertEqual(version, "5.7.41")
 
     def test_grab_banner_invalid_target(self):
         grabber = BannerGrabber(timeout=0.2)

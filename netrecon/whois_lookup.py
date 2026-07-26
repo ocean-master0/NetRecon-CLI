@@ -169,15 +169,19 @@ class WhoisLookup:
 
     def _query_whois_server(self, server: str, query: str) -> str:
         with socket.create_connection((server, 43), timeout=self.timeout_seconds) as sock:
+            sock.settimeout(self.timeout_seconds)
             payload = f"{query}\r\n".encode("utf-8", errors="ignore")
             sock.sendall(payload)
 
             chunks: list[bytes] = []
-            while True:
-                data = sock.recv(4096)
-                if not data:
-                    break
-                chunks.append(data)
+            try:
+                while True:
+                    data = sock.recv(4096)
+                    if not data:
+                        break
+                    chunks.append(data)
+            except socket.timeout:
+                pass
 
         return b"".join(chunks).decode("utf-8", errors="ignore")
 

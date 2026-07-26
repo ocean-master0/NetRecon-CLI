@@ -105,7 +105,8 @@ async def fetch_json(
         raise RuntimeError("aiohttp is required for async HTTP operations.") from exc
 
     timeout = aiohttp.ClientTimeout(total=timeout_seconds)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    connector = aiohttp.TCPConnector(ssl=True)
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.get(url, headers=headers or {}) as response:
             response.raise_for_status()
             payload = await response.json()

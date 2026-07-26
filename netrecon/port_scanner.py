@@ -21,11 +21,13 @@ class PortScanner:
         risky_ports: list[int] | None = None,
         timeout: float = 0.5,
         max_workers: int = 300,
+        stealth_mode: bool = False,
     ) -> None:
         self.common_ports = sorted(set(common_ports or [20, 21, 22, 23, 25, 53, 80, 443, 445, 3389, 8080]))
         self.risky_ports = sorted(set(risky_ports or [21, 23, 25, 445, 3389, 5900]))
         self.timeout = timeout
         self.max_workers = max(1, max_workers)
+        self.stealth_mode = stealth_mode
         self.banner_grabber = BannerGrabber(timeout=max(1.0, timeout * 2))
 
     @staticmethod
@@ -71,9 +73,15 @@ class PortScanner:
         ports: Iterable[int],
         *,
         grab_banners: bool = True,
+        stealth_mode: bool | None = None,
     ) -> PortScanResult:
         """Scan provided ports asynchronously and optionally grab service banners."""
+        import random
         port_list = sorted(set(int(port) for port in ports))
+        is_stealth = self.stealth_mode if stealth_mode is None else stealth_mode
+        if is_stealth:
+            random.shuffle(port_list)
+
         started = time.perf_counter()
         semaphore = asyncio.Semaphore(min(self.max_workers, max(1, len(port_list))))
         open_ports: list[int] = []
@@ -83,6 +91,8 @@ class PortScanner:
 
         async def _scan(port: int) -> tuple[int, str]:
             async with semaphore:
+                if is_stealth:
+                    await asyncio.sleep(random.uniform(0.01, 0.05))
                 return await self._scan_single_port(target, port)
 
         tasks = [asyncio.create_task(_scan(port)) for port in port_list]

@@ -178,7 +178,10 @@ class IPScanner:
                 LOGGER.info("External IP data resolved from provider: %s", provider_name)
                 return result, warnings
 
-            warnings.append("All external IP providers failed.")
+            if all("connect" in w.lower() or "timeout" in w.lower() or "resolve" in w.lower() for w in warnings):
+                warnings.append("Network connectivity issue detected — check your internet connection.")
+            else:
+                warnings.append("All external IP providers failed.")
             return None, warnings
 
     def lookup_external_ip_sync_fallback(self) -> tuple[ExternalIPInfo | None, list[str]]:
@@ -190,6 +193,7 @@ class IPScanner:
                     provider.url,
                     timeout=self.request_timeout_seconds,
                     headers=self.headers,
+                    verify=True,
                 )
                 response.raise_for_status()
                 payload = response.json()
@@ -205,7 +209,10 @@ class IPScanner:
                 return parsed, warnings
             warnings.append(f"{provider.name} returned invalid IP details.")
 
-        warnings.append("All external IP providers failed.")
+        if all("connect" in w.lower() or "timeout" in w.lower() or "resolve" in w.lower() for w in warnings):
+            warnings.append("Network connectivity issue detected — check your internet connection.")
+        else:
+            warnings.append("All external IP providers failed.")
         return None, warnings
 
     def lookup_external_ip(self) -> tuple[ExternalIPInfo | None, list[str]]:

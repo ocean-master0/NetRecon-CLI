@@ -8,3 +8,7 @@ scapy
 psutil
 python-whois
 ipwhois
+geoip2
+textual
+cryptography
+python-dotenv

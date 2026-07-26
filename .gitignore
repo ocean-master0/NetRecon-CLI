@@ -26,11 +26,17 @@ pip-wheel-metadata/
 .coverage.*
 htmlcov/
 
+# GeoIP databases (large binary files)
+Data/
+data/
+*.mmdb
+
 # Logs and runtime outputs
 *.log
 logs/
 reports/
 report.html
+AUDIT_REPORT.md
 
 # Local secrets and machine-specific config
 .env
@@ -44,3 +50,7 @@ secrets.json
 .vscode/
 .DS_Store
 Thumbs.db
+
+cve_cache.db
+
+features.md

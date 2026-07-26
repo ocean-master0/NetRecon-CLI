@@ -21,9 +21,5 @@
   "html_report_default": "report.html",
   "log_level": "INFO",
   "log_file": "logs/netrecon.log",
-  "api_keys": {
-    "abuseipdb": "",
-    "virustotal": "",
-    "shodan": ""
-  }
+  "api_keys": {}
 }
